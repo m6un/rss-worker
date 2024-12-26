@@ -1,0 +1,20 @@
+{
+  "name": "rss-worker",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.2",
+    "vitest": "2.1.8",
+    "wrangler": "^3.60.3"
+  },
+  "dependencies": {
+    "rss-parser": "^3.13.0",
+    "xmldom": "^0.6.0"
+  }
+}
