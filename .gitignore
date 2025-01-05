@@ -36,3 +36,6 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Temp
+temp_data.sql
