@@ -3,20 +3,22 @@ CREATE TABLE feeds (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     url TEXT NOT NULL,
     last_parsed DATETIME,
-    user_id INTEGER
+    user_id INTEGER,
+    blog_name TEXT
 );
 
 -- User preferences table to store digest preferences
 CREATE TABLE user_preferences (
     user_id INTEGER PRIMARY KEY,
-    preferred_days TEXT, -- e.g., "Mon,Wed,Fri"
-    preferred_time TIME  -- e.g., "09:00"
+    cron_schedule TEXT NOT NULL, -- e.g., "0 9 * * 1,5" (matches wrangler.toml)
+    email_to TEXT NOT NULL,
+    email_from TEXT NOT NULL,
+    email_subject TEXT DEFAULT 'Your Weekly Digest'
 );
 
--- Insert a sample feed
-INSERT INTO feeds (url, last_parsed, user_id) VALUES 
-('https://blog.samaltman.com/posts.atom', '2024-12-24 15:00:00', 1);
+-- Insert example data (replace with your own values)
+INSERT INTO feeds (url, last_parsed, user_id, blog_name) VALUES 
+('https://blog.samaltman.com/posts.atom', '2024-01-01 00:00:00', 1, 'Sam Altman blog');
 
--- Insert a sample user preference
-INSERT INTO user_preferences (user_id, preferred_days, preferred_time) VALUES 
-(1, 'Mon,Wed,Fri', '09:00');
+INSERT INTO user_preferences (user_id, cron_schedule, email_to, email_from, email_subject) VALUES 
+(1, '0 9 * * 1,5', 'your.email@example.com', 'digest@example.com', 'Your Weekly Digest');
