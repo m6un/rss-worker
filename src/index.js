@@ -8,88 +8,83 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
-import { DOMParser } from 'xmldom';
+import { CONFIG } from './config';
+import { parseFeed } from './services/feedParser';
+import { generateEmailHTML } from './templates/emailTemplate';
+import { sendEmailWithSendGrid } from './services/emailService';
+import { getFeedsForUser, getFeedCount, updateLastParsed } from './services/dbService';
+import { generateDummyHTML } from './templates/emailTemplateDummy';
+
+async function processUserDigest(userId, env) {
+	console.log('Starting digest process for user:', userId);
+	const { count } = await getFeedCount(env.DB, userId);
+	console.log('Found feeds count:', count);
+	
+	let allFeedsData = [];
+	for (let offset = 0; offset < count; offset += CONFIG.FEEDS_PER_BATCH) {
+		console.log(`Processing batch at offset ${offset}`);
+		const { results } = await getFeedsForUser(env.DB, userId, offset);
+		const feedsData = await Promise.all(
+			results.map(async row => {
+				console.log('Processing feed:', row.url);
+				const items = await parseFeed(row.url, row.last_parsed, env);
+				if (items.length > 0) {
+					console.log(`Found ${items.length} new items in feed:`, row.url);
+					await updateLastParsed(env.DB, row.url);
+					return {
+						source: row.source,
+						items
+					};
+				}
+				console.log('No new items in feed:', row.url);
+				return null;
+			})
+		);
+		allFeedsData = allFeedsData.concat(feedsData.filter(Boolean));
+	}
+
+	if (allFeedsData.length === 0) {
+		console.log('No new items found in any feeds');
+		return "No new items to digest";
+	}
+
+	console.log(`Generating email with ${allFeedsData.length} feeds`);
+	const emailContent = generateEmailHTML(allFeedsData);
+	return await sendEmailWithSendGrid(emailContent, userId, env);
+}
 
 /**
  * Exports the default Worker logic
  */
 export default {
 	async fetch(request, env) {
-		// Query the feeds table for user_id=1
-		const { results } = await env.DB
-			.prepare("SELECT url, last_parsed FROM feeds WHERE user_id=?")
-			.bind(1)
-			.all();
+		// Check if it's a preview request
+		const url = new URL(request.url);
+		const isPreview = url.searchParams.get('preview') === 'true';
 
-		// Parse all feeds in parallel, passing last_parsed to parseFeed.
-		const feedsData = await Promise.all(
-			results.map(row => parseFeed(row.url, row.last_parsed, env))
-		);
-		return new Response(JSON.stringify(feedsData), {
-			headers: { 'Content-Type': 'application/json' }
-		});
+		// If preview mode, return HTML directly
+		if (isPreview) {
+			return new Response(generateDummyHTML(), {
+				headers: { 'Content-Type': 'text/html' }
+			});
+		}
+
+		// For manual trigger while developing
+		const response = await processUserDigest(1, env);
+		return new Response(response);
 	},
+
+	// Handle scheduled cron trigger
+	async scheduled(event, env, ctx) {
+		ctx.waitUntil((async () => {
+			console.log('Cron triggered at:', new Date().toISOString());
+			try {
+				const result = await processUserDigest(1, env);
+				console.log('Digest processed successfully:', result);
+			} catch (error) {
+				console.error('Error processing digest:', error);
+				throw error;
+			}
+		})());
+	}
 };
-
-/**
- * parseFeed fetches and parses RSS or Atom feeds using xmldom
- */
-async function parseFeed(url, lastParsed, env) {
-	const response = await fetch(url);
-	const text = await response.text();
-	const parser = new DOMParser();
-	const xmlDoc = parser.parseFromString(text, "application/xml");
-
-	// Check for RSS
-	if (xmlDoc.getElementsByTagName("rss").length) {
-		var items = Array.from(xmlDoc.getElementsByTagName("item")).map(item => ({
-			title: item.getElementsByTagName("title")[0]?.textContent || "No Title",
-			link: item.getElementsByTagName("link")[0]?.textContent,
-			pubDate: item.getElementsByTagName("pubDate")[0]?.textContent,
-			guid: item.getElementsByTagName("guid")[0]?.textContent,
-			content: item.getElementsByTagName("description")[0]?.textContent || ""
-		}));
-	}
-	// Check for Atom
-	else if (xmlDoc.getElementsByTagName("feed").length) {
-		var items = Array.from(xmlDoc.getElementsByTagName("entry")).map(entry => ({
-			title: entry.getElementsByTagName("title")[0]?.textContent || "No Title",
-			link: entry.getElementsByTagName("link")[0]?.getAttribute("href"),
-			pubDate: entry.getElementsByTagName("updated")[0]?.textContent,
-			id: entry.getElementsByTagName("id")[0]?.textContent,
-			content: entry.getElementsByTagName("content")[0]?.textContent || ""
-		}));
-	} else {
-		throw new Error("Unsupported feed format");
-	}
-
-	// Filter out items older than last_parsed
-	if (lastParsed) {
-		items = items.filter(item => {
-			// Use 'pubDate' or fallback to 'updated' if needed
-			const dateStr = item.pubDate || item.updated;
-			return new Date(dateStr) > new Date(lastParsed);
-		});
-	}
-
-	// Summarize each item's content in no more than 30 words
-	items = await Promise.all(
-		items.map(async item => {
-			item.summary = await getSummaryViaAi(item.content, env);
-			return item;
-		})
-	);
-
-	return items;
-}
-
-// AI summarizer function
-async function getSummaryViaAi(content, env) {
-	const response = await env.AI.run('@cf/meta/llama-2-7b-chat-int8', {
-		messages: [
-			{ role: 'system', content: 'Summarize the text in 30 words or fewer. Only provide the summary. No disclaimers, no references to the user or text, and no mention of word count. Output only the summary.' },
-			{ role: 'user', content }
-		]
-	});
-	return response.response;
-}

@@ -30,6 +30,10 @@ enabled = true
 [ai]
 binding = "AI"
 
+# Cron Trigger
+[triggers]
+crons = ["36 14 * * *"]  # 7:55 PM IST (14:36 UTC)
+
 # Bind an Analytics Engine dataset. Use Analytics Engine to write analytics within your Pages Function.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#analytics-engine-datasets
 # [[analytics_engine_datasets]]
