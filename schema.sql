@@ -18,7 +18,7 @@ CREATE TABLE user_preferences (
 
 -- Insert example data (replace with your own values)
 INSERT INTO feeds (url, last_parsed, user_id, blog_name) VALUES 
-('https://blog.samaltman.com/posts.atom', '2024-01-01 00:00:00', 1, 'Sam Altman blog');
+('https://blog.samaltman.com/posts.atom', '2022-01-01 00:00:00', 1, 'Sam Altman blog');
 
 INSERT INTO user_preferences (user_id, cron_schedule, email_to, email_from, email_subject) VALUES 
 (1, '0 9 * * 1,5', 'your.email@example.com', 'digest@example.com', 'Your Weekly Digest');

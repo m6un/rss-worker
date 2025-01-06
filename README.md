@@ -1,96 +1,132 @@
 # RSS Digest Worker
 
-A Cloudflare Worker that fetches RSS/Atom feeds, summarizes them using AI, and sends beautiful email digests.
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare%20Workers-F38020?style=for-the-badge&logo=Cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Cloudflare D1](https://img.shields.io/badge/Cloudflare%20D1-F38020?style=for-the-badge&logo=Cloudflare&logoColor=white)](https://developers.cloudflare.com/d1/)
+[![Cloudflare AI](https://img.shields.io/badge/Cloudflare%20AI-F38020?style=for-the-badge&logo=Cloudflare&logoColor=white)](https://developers.cloudflare.com/workers-ai/)
+[![SendGrid](https://img.shields.io/badge/SendGrid-1A82E2?style=for-the-badge&logo=sendgrid&logoColor=white)](https://sendgrid.com)
+[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 
-## Features
+A serverless RSS/Atom feed digest service that fetches your favorite blogs, summarizes them using AI, and sends beautiful email digests. Built with Cloudflare's edge technologies.
 
-- 📨 Automated email digests of your favorite blogs
-- 🤖 AI-powered summaries of articles
-- 🎨 Clean, modern email template
-- ⏰ Configurable schedule via cron
-- 🔒 Secure and scalable using Cloudflare Workers
+## 📺 Demo
 
-## Setup
+[![Watch the demo](https://img.shields.io/badge/Watch%20the%20demo-blue)](https://www.loom.com/share/85d566fa5c044ec4913b008a212924de?sid=336e8499-5a52-49da-98ca-b88f97eae32a)
+
+## ✨ Features
+
+- 📨 **Automated Email Digests**: Get updates from your favorite blogs in one beautiful email
+- 🤖 **AI-Powered Summaries**: Each article is automatically summarized using Cloudflare's Workers AI
+- 🎨 **Modern Design**: Clean, responsive email template that works across all email clients
+- ⏰ **Flexible Scheduling**: Configure your preferred delivery days and times
+- 🔒 **Secure & Scalable**: Built on Cloudflare's global network
+- 💨 **Fast & Efficient**: Parallel processing of feeds with batch support
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
-1. [Node.js](https://nodejs.org/) installed
-2. [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed
-3. A Cloudflare account
-4. A SendGrid account and API key
+- [Node.js](https://nodejs.org/) (v16 or higher)
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
+- Cloudflare account (free tier works!)
+- SendGrid account (free tier works **again!**)
 
-### Installation
+### Manual Setup
 
-1. Clone the repository:
+1. Clone and install dependencies:
 ```bash
-git clone https://github.com/yourusername/rss-worker.git
+git clone https://github.com/m6un/rss-worker.git
 cd rss-worker
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Copy `.env.example` to `.dev.vars` and fill in your SendGrid API key:
+2. Configure environment:
 ```bash
-SENDGRID_API_KEY=your_key_here
+# Copy example env file
+cp .env.example .dev.vars
+
+# Add your SendGrid API key
+echo "SENDGRID_API_KEY=your_key_here" >> .dev.vars
 ```
 
-4. Create a D1 database:
+3. Set up database:
 ```bash
+# Create D1 database
 wrangler d1 create prod-rss-worker
-```
 
-5. Update the database ID in `wrangler.toml` with your new database ID
-
-6. Apply the database schema:
-```bash
+# Apply schema
 wrangler d1 execute prod-rss-worker --file=./schema.sql
 ```
 
-### Configuration
-
-1. Update the cron schedule in `wrangler.toml` to your preferred time
-2. Add your feeds and preferences to the database:
+4. Add your feeds:
 ```sql
-INSERT INTO feeds (url, user_id) VALUES 
-('https://example.com/feed.xml', 1);
+INSERT INTO feeds (url, user_id, blog_name) VALUES 
+('https://blog.example.com/feed.xml', 1, 'Example Blog');
 
-INSERT INTO user_preferences (user_id, cron_schedule, email_to, email_from, email_subject) 
-VALUES (1, '0 9 * * 1,5', 'your.email@example.com', 'digest@yourdomain.com', 'Your Weekly Digest');
+INSERT INTO user_preferences (
+    user_id, 
+    cron_schedule, 
+    email_to, 
+    email_from, 
+    email_subject
+) VALUES (
+    1,
+    '0 9 * * *',  -- Daily at 9 AM
+    'your.email@example.com',
+    'digest@yourdomain.com',
+    'Your Daily Tech Digest'
+);
 ```
 
-### Development
-
-Run locally:
-```bash
-npm run dev
-```
-
-Preview the email template:
-```
-http://localhost:8787/?preview=true
-```
-
-### Deployment
-
-Deploy to Cloudflare Workers:
+5. Deploy:
 ```bash
 npm run deploy
 ```
 
-## Architecture
+## 💻 Development
 
-- **Cloudflare Workers**: Serverless execution environment
-- **D1 Database**: Stores feed URLs and user preferences
-- **Workers AI**: Generates article summaries
-- **SendGrid**: Handles email delivery
+### Local Development
 
-## License
+```bash
+# Start local development server
+npm run dev
+```
 
-MIT
+## 🏗️ Architecture
 
-## Contributing
+The service is built using modern serverless technologies:
 
-Pull requests are welcome!
+- **[Cloudflare Workers](https://workers.cloudflare.com/)**: Edge computing platform
+- **[D1 Database](https://developers.cloudflare.com/d1/)**: SQLite at the edge
+- **[Workers AI](https://developers.cloudflare.com/workers-ai/)**: ML-powered summaries
+- **[SendGrid](https://sendgrid.com)**: Reliable email delivery
+
+### How It Works
+
+1. **Feed Processing**:
+   - Fetches RSS/Atom feeds in parallel batches
+   - Filters out previously processed items
+   - Generates AI summaries for new content
+
+2. **Email Generation**:
+   - Creates beautiful HTML emails
+   - Mobile-responsive design
+   - Sanitized content for security
+
+3. **Delivery**:
+   - Scheduled via cron triggers
+   - Configurable delivery times
+   - Error handling and retries
+
+### Development Process
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📧 Support
+
+- Create a [GitHub Issue](https://github.com/m6un/rss-worker/issues)
+- Email: hi@chandrxn.me
